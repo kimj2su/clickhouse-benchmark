@@ -7,15 +7,15 @@ services:
       MYSQL_USER: benchmark
       MYSQL_PASSWORD: benchmark
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
     ports:
-      - "8123:8123"
-      - "9000:9000"
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
     ulimits:
       nofile:
         soft: 262144
