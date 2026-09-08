@@ -1,0 +1,17 @@
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  datasource:
+    mysql:
+      url: jdbc:mysql://localhost:3306/benchmark
+      username: benchmark
+      password: benchmark
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    clickhouse:
+      url: jdbc:ch://localhost:8123/benchmark
+      username: default
+      password: ""
+      driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
+
+server:
+  port: 8080
