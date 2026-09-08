@@ -10,7 +10,7 @@ spring:
     clickhouse:
       url: jdbc:ch://localhost:8123/benchmark
       username: default
-      password: ""
+      password: clickhouse
       driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
 
 server:
