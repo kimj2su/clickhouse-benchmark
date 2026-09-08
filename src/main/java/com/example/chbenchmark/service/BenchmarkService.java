@@ -10,12 +10,14 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class BenchmarkService {
 
     private final Map<BenchmarkTarget, BenchmarkRepository> repositories;
     private final SeedDataGenerator seedDataGenerator;
+    private final Map<BenchmarkTarget, Long> rowCounts = new ConcurrentHashMap<>();
 
     public BenchmarkService(
             MysqlBenchmarkRepository mysqlRepository,
@@ -26,6 +28,8 @@ public class BenchmarkService {
             BenchmarkTarget.CLICKHOUSE, clickHouseRepository
         );
         this.seedDataGenerator = seedDataGenerator;
+        rowCounts.put(BenchmarkTarget.MYSQL, 0L);
+        rowCounts.put(BenchmarkTarget.CLICKHOUSE, 0L);
     }
 
     public long seed(BenchmarkTarget target, long count) {
@@ -34,7 +38,9 @@ public class BenchmarkService {
         long randomSeed = System.nanoTime();
         List<EventRow> rows = seedDataGenerator.generate(count, startId, randomSeed, LocalDateTime.now());
         repository.insertBatch(rows);
-        return repository.count();
+        long totalRows = repository.count();
+        rowCounts.put(target, totalRows);
+        return totalRows;
     }
 
     public BenchmarkQueryResponse query(BenchmarkTarget target, QueryType type, int days) {
@@ -47,10 +53,12 @@ public class BenchmarkService {
         };
         long dbElapsedMs = (System.nanoTime() - dbStart) / 1_000_000;
 
-        return new BenchmarkQueryResponse(target, type, repository.count(), 0L, dbElapsedMs, result);
+        long rowCountInTable = rowCounts.getOrDefault(target, 0L);
+        return new BenchmarkQueryResponse(target, type, rowCountInTable, 0L, dbElapsedMs, result);
     }
 
     public void reset(BenchmarkTarget target) {
         repositories.get(target).truncate();
+        rowCounts.put(target, 0L);
     }
 }

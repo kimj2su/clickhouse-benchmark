@@ -70,6 +70,10 @@ public class ClickHouseBenchmarkRepository implements BenchmarkRepository {
         ), epochSecond(from));
     }
 
+    // clickhouse-jdbc 0.7.1-patch1 produces broken/unquoted SQL when a java.sql.Timestamp is bound
+    // through Spring's JdbcTemplate + HikariCP, so time-boundary params are passed as epoch seconds
+    // and interpreted by toDateTime(?) instead (always UTC-safe, timezone-independent). Do NOT
+    // "clean this up" to match MysqlBenchmarkRepository's Timestamp binding — that reintroduces the bug.
     private long epochSecond(LocalDateTime dateTime) {
         return dateTime.atZone(ZoneId.systemDefault()).toEpochSecond();
     }

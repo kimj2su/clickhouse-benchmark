@@ -20,7 +20,6 @@ class BenchmarkServiceTest {
     void queryRoutesToCorrectRepositoryAndMeasuresDbTime() {
         MysqlBenchmarkRepository mysqlRepo = mock(MysqlBenchmarkRepository.class);
         ClickHouseBenchmarkRepository chRepo = mock(ClickHouseBenchmarkRepository.class);
-        when(mysqlRepo.count()).thenReturn(42L);
         when(mysqlRepo.groupByEventType(90))
             .thenReturn(List.of(new GroupByResult("click", 10, 100.0, 10.0)));
 
@@ -29,10 +28,33 @@ class BenchmarkServiceTest {
         BenchmarkQueryResponse response = service.query(BenchmarkTarget.MYSQL, QueryType.GROUPBY, 90);
 
         assertThat(response.target()).isEqualTo(BenchmarkTarget.MYSQL);
-        assertThat(response.rowCountInTable()).isEqualTo(42);
+        // No seed() was called on this fresh service, so the cached row count starts at 0 -
+        // and query() must read the cache rather than issuing a live SELECT COUNT(*).
+        assertThat(response.rowCountInTable()).isEqualTo(0L);
         assertThat(response.dbElapsedMs()).isGreaterThanOrEqualTo(0);
         verify(mysqlRepo).groupByEventType(90);
         verify(chRepo, never()).groupByEventType(anyInt());
+        verify(mysqlRepo, never()).count();
+    }
+
+    @Test
+    void seedUpdatesCachedRowCountAndSubsequentQueryReflectsIt() {
+        MysqlBenchmarkRepository mysqlRepo = mock(MysqlBenchmarkRepository.class);
+        ClickHouseBenchmarkRepository chRepo = mock(ClickHouseBenchmarkRepository.class);
+        when(mysqlRepo.count()).thenReturn(0L).thenReturn(42L);
+        when(mysqlRepo.groupByEventType(90)).thenReturn(List.of());
+
+        BenchmarkService service = new BenchmarkService(mysqlRepo, chRepo, new SeedDataGenerator());
+
+        long total = service.seed(BenchmarkTarget.MYSQL, 42);
+        assertThat(total).isEqualTo(42L);
+
+        BenchmarkQueryResponse response = service.query(BenchmarkTarget.MYSQL, QueryType.GROUPBY, 90);
+
+        assertThat(response.rowCountInTable()).isEqualTo(42L);
+        // Both count() invocations came from seed() (startId lookup + post-insert total);
+        // query() must not trigger a third one.
+        verify(mysqlRepo, times(2)).count();
     }
 
     @Test
